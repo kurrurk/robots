@@ -1,5 +1,13 @@
 const bcrypt = require("bcrypt");
+const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const pool = require("./db");
+const authMiddleware = require("./authMiddleware");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 /* ===== INIT DB ===== */
 async function waitForDB(retries = 10) {
@@ -56,6 +64,40 @@ async function initDB() {
         `);
   }
 }
+/* ===== LOGIN ===== */
+app.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  const result = await pool.query("SELECT * FROM users WHERE email=$1", [
+    email,
+  ]);
+
+  const user = result.rows[0];
+
+  if (!user) return res.sendStatus(401);
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+
+  if (!valid) return res.sendStatus(401);
+
+  const token = jwt.sign({ id: user.id }, "secret");
+
+  res.json({ token });
+});
+
+/* ===== GET ROBOTS ===== */
+app.get("/robots", authMiddleware, async (req, res) => {
+  const cached = await redis.get("robots");
+
+  if (cached) {
+    console.log("FROM CACHE");
+    return res.json(JSON.parse(cached));
+  }
+  const result = await pool.query("SELECT * FROM robots");
+  await redis.set("robots", JSON.stringify(result.rows), "EX", 100);
+
+  res.json(result.rows);
+});
 
 (async () => {
   await waitForDB();
