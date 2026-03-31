@@ -1,12 +1,12 @@
 services:
-  # db:
-  #   image: postgres:15
-  #   environment:
-  #     POSTGRES_USER: user
-  #     POSTGRES_PASSWORD: password
-  #     POSTGRES_DB: robots
-  #   ports:
-  #     - "5433:5432"
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: robots
+    ports:
+      - "5433:5432"
 
   # redis:
   #   image: redis:7
