@@ -39,7 +39,6 @@ export default function App() {
     const data = await res.json();
     setRobots(data);
 
-    // добавить на карту
     data.forEach(addOrUpdateRobot);
   }
 
@@ -131,7 +130,6 @@ export default function App() {
       }),
     });
 
-    // фикс рендера
     setTimeout(() => {
       mapObj.current.updateSize();
     }, 100);
