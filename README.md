@@ -57,5 +57,8 @@ Die Anwendung basiert auf einer Client-Server-Architektur. Das Backend wurde mit
 - Interaktive Karte (OpenLayers)
 - Roboter hinzufügen / löschen
 - Redis-Caching (TTL 10 Sekunden)
+- **Speicherung der Positionshistorie**
+  - Jede Bewegung wird in der Tabelle `robot_positions` gespeichert
+  - API-Endpunkt: `GET /robots/:id/history`
 
 ---

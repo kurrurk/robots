@@ -29,6 +29,7 @@ export default function App() {
   const [robots, setRobots] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [isRunning, setIsRunning] = useState(true);
 
   /* ===== LOAD ROBOTS ===== */
   async function loadRobots(t) {
@@ -154,6 +155,27 @@ export default function App() {
     };
   }, [token]);
 
+  /* ===== STOP/START SIMULATION ===== */
+  async function toggleSimulation() {
+    if (isRunning) {
+      await fetch("http://localhost:3000/simulation/stop", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } else {
+      await fetch("http://localhost:3000/simulation/start", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+
+    setIsRunning(!isRunning);
+  }
+
   /* ===== LOOUT ===== */
   function logout() {
     setToken(null);
@@ -199,6 +221,13 @@ export default function App() {
 
           <button className="btn btn-error" onClick={() => setShowDelete(true)}>
             Delete Robot
+          </button>
+
+          <button
+            className={`btn ${isRunning ? "btn-warning" : "btn-success"}`}
+            onClick={toggleSimulation}
+          >
+            {isRunning ? "Stop Simulation" : "Start Simulation"}
           </button>
 
           <button className="btn btn-ghost" onClick={logout}>

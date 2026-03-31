@@ -37,40 +37,50 @@ async function initDB() {
   const hash = await bcrypt.hash("test123", 10);
 
   await pool.query(`
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email TEXT UNIQUE,
-            password_hash TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    `);
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE,
+      password_hash TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
   await pool.query(`
     INSERT INTO users (email, password_hash)
-        VALUES ('admin@test.com', '${hash}')
-        ON CONFLICT (email) DO NOTHING
-    `);
+      VALUES ('admin@test.com', '${hash}')
+      ON CONFLICT (email) DO NOTHING
+  `);
 
   await pool.query(`
-        CREATE TABLE IF NOT EXISTS robots (
-            id SERIAL PRIMARY KEY,
-            name TEXT,
-            status TEXT,
-            lat FLOAT,
-            lon FLOAT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    `);
+    CREATE TABLE IF NOT EXISTS robots (
+      id SERIAL PRIMARY KEY,
+      name TEXT,
+      status TEXT,
+      lat FLOAT,
+      lon FLOAT,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
 
   const check = await pool.query("SELECT COUNT(*) FROM robots");
   if (check.rows[0].count == 0) {
     await pool.query(`
-            INSERT INTO robots (name, status, lat, lon)
-            VALUES
-            ('R2D2', 'idle', 50, 10),
-            ('C3PO', 'moving', 51, 11)
-        `);
+      INSERT INTO robots (name, status, lat, lon)
+      VALUES
+      ('R2D2', 'idle', 50, 10),
+      ('C3PO', 'moving', 51, 11)
+    `);
   }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS robot_positions (
+      id SERIAL PRIMARY KEY,
+      robot_id INTEGER REFERENCES robots(id) ON DELETE CASCADE,
+      lat FLOAT,
+      lon FLOAT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 /* ===== REGISTER ===== */
@@ -183,7 +193,12 @@ app.post("/robots/:id/move", authMiddleware, async (req, res) => {
 
   const updatedRobot = updated.rows[0];
 
-  // отправка через websocket
+  await pool.query(
+    `INSERT INTO robot_positions (robot_id, lat, lon)
+    VALUES ($1, $2, $3)`,
+    [id, lat, lon],
+  );
+
   broadcast(updatedRobot);
 
   await redis.del("robots");
@@ -191,7 +206,49 @@ app.post("/robots/:id/move", authMiddleware, async (req, res) => {
   res.json(updatedRobot);
 });
 
+/* ===== ROBOTS MOVES HISTORY ===== */
+app.get("/robots/:id/history", async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `SELECT lat, lon, created_at
+     FROM robot_positions
+     WHERE robot_id=$1
+     ORDER BY created_at ASC`,
+    [id],
+  );
+
+  res.json(result.rows);
+});
+
 /* ===== SIMULATION ===== */
+let simulationInterval = null;
+
+function startSimulation() {
+  if (simulationInterval) return;
+
+  simulationInterval = setInterval(simulate, 2000);
+  console.log("Simulation STARTED");
+}
+
+function stopSimulation() {
+  if (simulationInterval) {
+    clearInterval(simulationInterval);
+    simulationInterval = null;
+    console.log("Simulation STOPPED");
+  }
+}
+
+app.post("/simulation/start", async (req, res) => {
+  startSimulation();
+  res.json({ status: "started" });
+});
+
+app.post("/simulation/stop", async (req, res) => {
+  stopSimulation();
+  res.json({ status: "stopped" });
+});
+
 const SIMULATION_TOKEN = jwt.sign({ id: 1 }, "secret");
 
 async function simulate() {
@@ -213,7 +270,7 @@ async function simulate() {
   await waitForDB();
   await initDB();
 
-  setInterval(simulate, 2000);
+  simulationInterval = setInterval(simulate, 2000);
 })();
 
 app.listen(3000, () => console.log("API running"));
