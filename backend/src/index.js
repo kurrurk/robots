@@ -239,12 +239,12 @@ function stopSimulation() {
   }
 }
 
-app.post("/simulation/start", async (req, res) => {
+app.post("/simulation/start", authMiddleware, async (req, res) => {
   startSimulation();
   res.json({ status: "started" });
 });
 
-app.post("/simulation/stop", async (req, res) => {
+app.post("/simulation/stop", authMiddleware, async (req, res) => {
   stopSimulation();
   res.json({ status: "stopped" });
 });
